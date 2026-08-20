@@ -2,40 +2,115 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 
-DEVANAGARI_FONT = r"C:\Windows\Fonts\ARIALUNI.ttf"
-MODI_FONT = r"assets\reference\NotoSansModi-Regular.ttf"
-SHARADA_FONT = r"assets\reference\NotoSansSharada-Regular.ttf"
+# --------------------------------------------------
+# PROJECT BASE DIRECTORY
+# --------------------------------------------------
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+# --------------------------------------------------
+# FONT PATHS
+# --------------------------------------------------
+
+DEVANAGARI_FONT = BASE_DIR / "fonts" / "ARIALUNI.ttf"
+
+MODI_FONT = (
+    BASE_DIR
+    / "assets"
+    / "reference"
+    / "NotoSansModi-Regular.ttf"
+)
+
+SHARADA_FONT = (
+    BASE_DIR
+    / "assets"
+    / "reference"
+    / "NotoSansSharada-Regular.ttf"
+)
+
+
+# --------------------------------------------------
+# GET FONT
+# --------------------------------------------------
 
 def get_font(script, size):
+
     if script == "devanagari":
         path = DEVANAGARI_FONT
+
     elif script == "modi":
         path = MODI_FONT
+
     elif script == "sharada":
         path = SHARADA_FONT
+
     else:
-        raise ValueError(f"Unsupported script: {script}")
-
-    return ImageFont.truetype(path, size)
-
-
-def load_text(script):
-    path = Path(f"assets/reference/{script}.txt")
+        raise ValueError(
+            f"Unsupported script: {script}"
+        )
 
     if not path.exists():
-        raise FileNotFoundError(f"Reference file not found: {path}")
+        raise FileNotFoundError(
+            f"Font not found: {path}"
+        )
 
-    return path.read_text(encoding="utf-8").strip()
+    return ImageFont.truetype(
+        str(path),
+        size
+    )
 
 
-def wrap_text(text, font, max_width, draw):
+# --------------------------------------------------
+# LOAD REFERENCE TEXT
+# --------------------------------------------------
+
+def load_text(script):
+
+    path = (
+        BASE_DIR
+        / "assets"
+        / "reference"
+        / f"{script}.txt"
+    )
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Reference file not found: {path}"
+        )
+
+    # UTF-8 with optional BOM support
+    text = path.read_text(
+        encoding="utf-8-sig"
+    )
+
+    return text.strip()
+
+
+# --------------------------------------------------
+# WRAP TEXT
+# --------------------------------------------------
+
+def wrap_text(
+    text,
+    font,
+    max_width,
+    draw
+):
+
     words = text.split()
+
     lines = []
+
     current = ""
 
     for word in words:
-        test_line = word if not current else current + " " + word
+
+        test_line = (
+            word
+            if not current
+            else current + " " + word
+        )
 
         bbox = draw.textbbox(
             (0, 0),
@@ -43,9 +118,16 @@ def wrap_text(text, font, max_width, draw):
             font=font
         )
 
-        if bbox[2] - bbox[0] <= max_width:
+        text_width = (
+            bbox[2] - bbox[0]
+        )
+
+        if text_width <= max_width:
+
             current = test_line
+
         else:
+
             if current:
                 lines.append(current)
 
@@ -57,14 +139,20 @@ def wrap_text(text, font, max_width, draw):
     return lines
 
 
+# --------------------------------------------------
+# RENDER TEXT PAGE
+# --------------------------------------------------
+
 def render_text_page(
     script,
     output_path,
     width=1600,
     height=2200
 ):
+
     text = load_text(script)
 
+    # Manuscript-like base background
     image = Image.new(
         "RGB",
         (width, height),
@@ -73,13 +161,21 @@ def render_text_page(
 
     draw = ImageDraw.Draw(image)
 
-    font = get_font(script, 48)
+    # Font
+    font = get_font(
+        script,
+        48
+    )
 
+    # Margins
     margin_x = 150
     margin_y = 180
 
-    max_width = width - (2 * margin_x)
+    max_width = (
+        width - (2 * margin_x)
+    )
 
+    # Wrap text
     lines = wrap_text(
         text,
         font,
@@ -87,10 +183,13 @@ def render_text_page(
         draw
     )
 
+    # Starting Y position
     y = margin_y
 
+    # Space between lines
     line_spacing = 25
 
+    # Draw lines
     for line in lines:
 
         bbox = draw.textbbox(
@@ -99,9 +198,15 @@ def render_text_page(
             font=font
         )
 
-        line_height = bbox[3] - bbox[1]
+        line_height = (
+            bbox[3] - bbox[1]
+        )
 
-        if y + line_height > height - margin_y:
+        # Stop if page is full
+        if (
+            y + line_height
+            > height - margin_y
+        ):
             break
 
         draw.text(
@@ -111,12 +216,24 @@ def render_text_page(
             fill=(55, 40, 25)
         )
 
-        y += line_height + line_spacing
+        y += (
+            line_height
+            + line_spacing
+        )
 
-    image.save(output_path)
+    # Save image
+    image.save(
+        output_path
+    )
 
-    print(f"Rendered {script}: {output_path}")
+    print(
+        f"Rendered {script}: {output_path}"
+    )
 
+
+# --------------------------------------------------
+# TEST ALL THREE SCRIPTS
+# --------------------------------------------------
 
 if __name__ == "__main__":
 

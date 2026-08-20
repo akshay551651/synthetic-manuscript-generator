@@ -1,30 +1,35 @@
 from PIL import ImageDraw
 
 
-def create_layout(
-    image,
-    text,
-    font,
-    margin_x=150,
-    margin_y=180,
-    line_spacing=25,
-):
+def create_layout(image, text, font):
     """
-    Calculate text lines and positions so that text
-    stays inside manuscript boundaries.
+    Create text positions and bounding boxes.
+
+    Returns:
+        [
+            (x, y, line, bbox),
+            ...
+        ]
     """
 
     draw = ImageDraw.Draw(image)
 
-    max_width = image.width - (2 * margin_x)
-    max_height = image.height - (2 * margin_y)
+    width, height = image.size
 
+    margin_x = 150
+    margin_y = 180
+
+    max_width = width - (2 * margin_x)
+
+    # Split text into words
     words = text.split()
 
     lines = []
     current_line = ""
 
+    # Build lines according to available width
     for word in words:
+
         test_line = (
             word
             if not current_line
@@ -37,12 +42,13 @@ def create_layout(
             font=font
         )
 
-        line_width = bbox[2] - bbox[0]
+        text_width = bbox[2] - bbox[0]
 
-        if line_width <= max_width:
+        if text_width <= max_width:
             current_line = test_line
 
         else:
+
             if current_line:
                 lines.append(current_line)
 
@@ -55,6 +61,8 @@ def create_layout(
 
     y = margin_y
 
+    line_spacing = 25
+
     for line in lines:
 
         bbox = draw.textbbox(
@@ -63,13 +71,26 @@ def create_layout(
             font=font
         )
 
-        line_height = bbox[3] - bbox[1]
+        x1, y1, x2, y2 = bbox
 
-        if y + line_height > margin_y + max_height:
+        line_height = y2 - y1
+
+        # Stop if text reaches bottom of page
+        if y + line_height > height - margin_y:
             break
 
         positions.append(
-            (margin_x, y, line)
+            (
+                margin_x,
+                y,
+                line,
+                (
+                    x1,
+                    y1,
+                    x2,
+                    y2
+                )
+            )
         )
 
         y += line_height + line_spacing

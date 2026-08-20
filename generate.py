@@ -1,72 +1,116 @@
 from pathlib import Path
-import random
+from PIL import ImageDraw
 
-from src.generator import generate_page
-
-
-SCRIPTS = [
-    "devanagari",
-    "modi",
-    "sharada",
-]
-
-SPLITS = {
-    "train": 85,
-    "validation": 10,
-    "test": 5,
-}
+from src.background import generate_background
+from src.layout import create_layout
+from src.effects import apply_ink_effects
+from src.tect_renderer import get_font, load_text
 
 
-def generate_dataset():
-    random.seed(42)
+def generate_page(script, output_dir, seed=1, page_number=1):
 
-    for script in SCRIPTS:
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-        image_number = 1
+    # Generate manuscript background
+    image = generate_background(seed=seed)
 
-        for split, count in SPLITS.items():
+    # Load reference text and font
+    text = load_text(script)
+    font = get_font(script, 48)
 
-            output_dir = Path("output") / script / split
-            output_dir.mkdir(parents=True, exist_ok=True)
+    # Create text layout with bounding boxes
+    positions = create_layout(
+        image,
+        text,
+        font
+    )
 
-            print(
-                f"\nGenerating {script} - {split}: {count} images"
-            )
+    draw = ImageDraw.Draw(image)
 
-            for _ in range(count):
+    # Draw each text line
+    for item in positions:
 
-                seed = random.randint(1, 1_000_000)
+        x, y, line, bbox = item
 
-                generate_page(
-                    script,
-                    output_dir,
-                    seed=seed
-                )
+        draw.text(
+            (x, y),
+            line,
+            font=font,
+            fill=(55, 40, 25)
+        )
 
-                # Rename generated files with sequential numbering
-                old_image = output_dir / f"{script}_001.png"
-                old_md = output_dir / f"{script}_001.md"
+    # Apply manuscript ink effects
+    image = apply_ink_effects(
+        image,
+        seed=seed
+    )
 
-                new_image = (
-                    output_dir /
-                    f"{script}_{image_number:03d}.png"
-                )
+    # Output paths with page numbering
+    image_path = output_dir / f"{script}_{page_number:03d}.png"
+    annotation_path = output_dir / f"{script}_{page_number:03d}.md"
 
-                new_md = (
-                    output_dir /
-                    f"{script}_{image_number:03d}.md"
-                )
+    # Save image
+    image.save(
+        image_path,
+        format="PNG"
+    )
 
-                old_image.rename(new_image)
-                old_md.rename(new_md)
+    # Create annotation
+    annotation_lines = [
+        "# Synthetic Manuscript Annotation",
+        "",
+        f"- Script: {script}",
+        f"- Image: {image_path.name}",
+        f"- Width: {image.width}",
+        f"- Height: {image.height}",
+        f"- Seed: {seed}",
+        "",
+        "## Text",
+        "",
+        text,
+        "",
+        "## Line Annotations",
+        "",
+        "| Line | Text | X1 | Y1 | X2 | Y2 |",
+        "|---:|---|---:|---:|---:|---:|",
+    ]
 
-                image_number += 1
+    # Add bounding-box annotations
+    for index, item in enumerate(positions, start=1):
 
-    print("\n===================================")
-    print("Dataset generation completed!")
-    print("300 images generated.")
-    print("===================================")
+        x, y, line, bbox = item
+
+        x1, y1, x2, y2 = bbox
+
+        annotation_lines.append(
+            f"| {index} | {line} | "
+            f"{x1} | {y1} | {x2} | {y2} |"
+        )
+
+    # Save annotation as UTF-8
+    annotation_path.write_text(
+        "\n".join(annotation_lines),
+        encoding="utf-8"
+    )
+
+    print(f"Generated: {image_path}")
+    print(f"Annotation: {annotation_path}")
 
 
 if __name__ == "__main__":
-    generate_dataset()
+
+    scripts = [
+        "devanagari",
+        "modi",
+        "sharada"
+    ]
+
+    for script in scripts:
+
+        generate_page(
+            script,
+            "output/test",
+            seed=1,
+            page_number=1
+        )
