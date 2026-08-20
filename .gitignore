@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Generated test images
+background_test.png
+devanagari_text_test.png
+modi_text_test.png
+sharada_text_test.png
+effects_test.png
+script_test.png
+
+# Generated dataset
+output/
+
+# Temporary files
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
